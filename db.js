@@ -4,7 +4,7 @@ const pool = mysql.createPool({
   // configuração de acesso
   host: '127.0.0.1',
   database: 'zombies',
-  user: 'root',
+  user: 'zombie',
   password: '123456',
   port: 3306,
 

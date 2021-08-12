@@ -1,5 +1,5 @@
-import express from 'express'
-import db from'../db.js'
+import express, { json } from 'express'
+import db from '../db.js'
 const router = express.Router()
 
 
@@ -9,14 +9,14 @@ router.get('/', async (req, res, next) => {
   try {
     const [people] = await db.execute({
       sql: 'SELECT * FROM person LEFT OUTER JOIN zombie ON eatenBy = zombie.id',
-  
+
       // nestTables resolve conflitos de haver campos com mesmo nome nas tabelas
       // nas quais fizemos JOIN (neste caso, `person` e `zombie`).
       // descrição: https://github.com/felixge/node-mysql#joins-with-overlapping-column-names
       nestTables: true
     })
 
-    
+
     // Exercício 3: negociação de conteúdo para esta resposta
     //
     // renderiza a view de listagem de pessoas, passando como contexto
@@ -26,11 +26,15 @@ router.get('/', async (req, res, next) => {
     //   - por exemplo, assim que uma pessoa é excluída, uma mensagem de
     //     sucesso pode ser mostrada
     // - error: idem para mensagem de erro
-    res.render('list-people', {
-      people,
-      success: req.flash('success'),
-      error: req.flash('error')
+    res.format({
+      html: () => res.render('list-people', {
+        people,
+        success: req.flash('success'),
+        error: req.flash('error')
+      }),
+      json: () => res.send(people)
     })
+
 
   } catch (error) {
     console.error(error)
@@ -55,13 +59,13 @@ router.put('/eaten/', async (req, res, next) => {
     const [result] = await db.execute(`UPDATE person 
                                        SET alive=false, eatenBy=?
                                        WHERE id=?`,
-                                      [zombieId, personId])
+      [zombieId, personId])
     if (result.affectedRows !== 1) {
       req.flash('error', 'Não há pessoa para ser comida.')
     } else {
       req.flash('success', 'A pessoa foi inteiramente (não apenas cérebro) engolida.')
     }
-    
+
   } catch (error) {
     req.flash('error', `Erro desconhecido. Descrição: ${error}`)
 
@@ -89,6 +93,32 @@ router.get('/new/', (req, res) => {
 //      - Em caso de sucesso do INSERT, colocar uma mensagem feliz
 //      - Em caso de erro do INSERT, colocar mensagem vermelhinha
 
+router.post('/', async (req, res, next) => {
+  try {
+    if (!req.body.name) throw ("Favor informar um nome")
+    const response = await db.execute('INSERT INTO person (name, alive) VALUES (?, ?)', [req.body.name, true]);
+    console.log(response)
+    res.redirect('/people');
+  } catch (err) {
+    console.log(err);
+    req.flash('error', `Erro desconhecido. Descrição: ${err}`)
+    next(err);
+  }
+})
+
+
+router.post('/', async (req, res, next) => {
+  try {
+    const response = await db.execute('INSERT INTO person (name, alive) VALUES (?, ?)', [req.body.name, true]);
+    console.log(response)
+    res.redirect('/people');
+    req.flash('success', `Deu bom!`)
+  } catch (err) {
+    console.log(err);
+    req.flash('error', `Erro desconhecido. Descrição: ${err}`)
+    next(err);
+  }
+})
 
 /* DELETE uma pessoa */
 // Exercício 2: IMPLEMENTAR AQUI
@@ -97,6 +127,19 @@ router.get('/new/', (req, res) => {
 //   2. Redirecionar para a rota de listagem de pessoas
 //      - Em caso de sucesso do INSERT, colocar uma mensagem feliz
 //      - Em caso de erro do INSERT, colocar mensagem vermelhinha
+
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const response = await db.execute('DELETE FROM person WHERE id = ?', [req.params.id]);
+    console.log(response)
+    res.redirect('/people');
+    req.flash('success', `Deu bom!`)
+  } catch (err) {
+    console.log(err);
+    req.flash('error', `Erro desconhecido. Descrição: ${err}`)
+    next(err);
+  }
+})
 
 
 export default router
